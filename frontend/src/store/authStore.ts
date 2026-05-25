@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { usePipelineStore } from './pipelineStore'
 
 export interface AuthState {
   activeTenant: string | null;
@@ -38,14 +39,17 @@ export const useAuthStore = create<AuthState>()(
         isFirstLogin
       }),
       updatePasswordReset: () => set({ isFirstLogin: false }),
-      logout: () => set({
-        token: null,
-        activeTenant: null,
-        isAuthenticated: false,
-        role: null,
-        email: null,
-        isFirstLogin: false
-      }),
+      logout: () => {
+        usePipelineStore.getState().setActiveTenant(null)
+        set({
+          token: null,
+          activeTenant: null,
+          isAuthenticated: false,
+          role: null,
+          email: null,
+          isFirstLogin: false
+        })
+      },
       toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
     }),
     {

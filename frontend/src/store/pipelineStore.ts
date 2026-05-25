@@ -37,39 +37,56 @@ export const usePipelineStore = create<PipelineStoreState>()(
           destinations: tenant ? (state.destinationsByTenant || {})[tenant] || [] : [],
         })),
       addPipeline: (pipeline) =>
-        set((state) => ({
-          pipelines: [...state.pipelines, pipeline],
-          pipelinesByTenant: {
-            ...(state.pipelinesByTenant || {}),
-            [state.activeTenant || 'default']: [...state.pipelines, pipeline],
-          },
-        })),
+        set((state) => {
+          const tenantKey = state.activeTenant || 'default'
+          const tenantPipelines = (state.pipelinesByTenant || {})[tenantKey] || []
+          const updatedPipelines = [...tenantPipelines.filter((p) => p.id !== pipeline.id), pipeline]
+          return {
+            pipelines: updatedPipelines,
+            pipelinesByTenant: {
+              ...(state.pipelinesByTenant || {}),
+              [tenantKey]: updatedPipelines,
+            },
+          }
+        }),
       addSource: (source) =>
-        set((state) => ({
-          sources: [...state.sources, source],
-          sourcesByTenant: {
-            ...(state.sourcesByTenant || {}),
-            [state.activeTenant || 'default']: [...state.sources, source],
-          },
-        })),
+        set((state) => {
+          const tenantKey = state.activeTenant || 'default'
+          const tenantSources = (state.sourcesByTenant || {})[tenantKey] || []
+          const updatedSources = [...tenantSources.filter((s) => s.id !== source.id), source]
+          return {
+            sources: updatedSources,
+            sourcesByTenant: {
+              ...(state.sourcesByTenant || {}),
+              [tenantKey]: updatedSources,
+            },
+          }
+        }),
       addDestination: (destination) =>
-        set((state) => ({
-          destinations: [...state.destinations, destination],
-          destinationsByTenant: {
-            ...(state.destinationsByTenant || {}),
-            [state.activeTenant || 'default']: [...state.destinations, destination],
-          },
-        })),
+        set((state) => {
+          const tenantKey = state.activeTenant || 'default'
+          const tenantDestinations = (state.destinationsByTenant || {})[tenantKey] || []
+          const updatedDestinations = [...tenantDestinations.filter((d) => d.id !== destination.id), destination]
+          return {
+            destinations: updatedDestinations,
+            destinationsByTenant: {
+              ...(state.destinationsByTenant || {}),
+              [tenantKey]: updatedDestinations,
+            },
+          }
+        }),
       updatePipeline: (id, updates) =>
         set((state) => {
-          const pipelines = state.pipelines.map((pipeline) =>
+          const tenantKey = state.activeTenant || 'default'
+          const tenantPipelines = (state.pipelinesByTenant || {})[tenantKey] || []
+          const updatedPipelines = tenantPipelines.map((pipeline) =>
             pipeline.id === id ? { ...pipeline, ...updates } : pipeline
           )
           return {
-            pipelines,
+            pipelines: updatedPipelines,
             pipelinesByTenant: {
               ...(state.pipelinesByTenant || {}),
-              [state.activeTenant || 'default']: pipelines,
+              [tenantKey]: updatedPipelines,
             },
           }
         }),
