@@ -1,5 +1,5 @@
 export type AuthType = 'bearer' | 'apikey' | 'none';
-export type DbDialect = 'postgresql' | 'mysql';
+export type DbDialect = 'postgresql' | 'mysql' | 'redshift' | 'snowflake' | 'bigquery';
 export type PipelineStatus = 'active' | 'syncing' | 'idle' | 'failed';
 
 export interface PipelineHeader {

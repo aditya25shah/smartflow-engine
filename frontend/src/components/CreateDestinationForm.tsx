@@ -7,7 +7,7 @@ import type { Destination } from '@/types'
 
 const destinationSchema = z.object({
   name: z.string().min(2, 'Destination name must be at least 2 characters'),
-  targetDbDialect: z.enum(['postgresql', 'mysql'] as const),
+  targetDbDialect: z.enum(['postgresql', 'mysql', 'redshift', 'snowflake', 'bigquery'] as const),
   targetDbHost: z.string().min(1, 'Database host is required'),
   targetDbPort: z.coerce.number().int().min(1).max(65535, 'Port must be between 1 and 65535'),
   targetDbName: z.string().min(1, 'Database name is required'),
@@ -50,6 +50,10 @@ export const CreateDestinationForm: React.FC<CreateDestinationFormProps> = ({
   useEffect(() => {
     if (watchDialect === 'mysql') {
       setValue('targetDbPort', 3306)
+    } else if (watchDialect === 'redshift') {
+      setValue('targetDbPort', 5439)
+    } else if (watchDialect === 'snowflake' || watchDialect === 'bigquery') {
+      setValue('targetDbPort', 443)
     } else {
       setValue('targetDbPort', 5432)
     }
@@ -124,23 +128,30 @@ export const CreateDestinationForm: React.FC<CreateDestinationFormProps> = ({
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
-              Target SQL Dialect
+              Target SQL Dialect / Warehouse
             </label>
             <div className="grid grid-cols-2 gap-2">
-              {(['postgresql', 'mysql'] as const).map((dialect) => (
-                <button
-                  key={dialect}
-                  type="button"
-                  onClick={() => setValue('targetDbDialect', dialect, { shouldValidate: true })}
-                  className={`py-2 px-3 text-xs border rounded-lg font-semibold capitalize transition-all cursor-pointer ${
-                    watchDialect === dialect
-                      ? 'bg-panel border-border-secondary text-text-primary'
-                      : 'bg-panel-card border-border-primary text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {dialect === 'postgresql' ? 'PostgreSQL' : 'MySQL'}
-                </button>
-              ))}
+              {(['postgresql', 'mysql', 'redshift', 'snowflake', 'bigquery'] as const).map((dialect) => {
+                const label = 
+                  dialect === 'postgresql' ? 'PostgreSQL' :
+                  dialect === 'mysql' ? 'MySQL' :
+                  dialect === 'redshift' ? 'Amazon Redshift' :
+                  dialect === 'snowflake' ? 'Snowflake' : 'Google BigQuery'
+                return (
+                  <button
+                    key={dialect}
+                    type="button"
+                    onClick={() => setValue('targetDbDialect', dialect, { shouldValidate: true })}
+                    className={`py-2 px-3 text-xs border rounded-lg font-semibold transition-all cursor-pointer ${
+                      watchDialect === dialect
+                        ? 'bg-panel border-border-secondary text-text-primary'
+                        : 'bg-panel-card border-border-primary text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

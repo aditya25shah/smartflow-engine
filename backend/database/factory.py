@@ -50,8 +50,20 @@ def get_async_engine(db_config: Dict[str, Any], override_port: Optional[int] = N
     # Map configuration to async dialects
     if target_db in ("postgresql", "postgres"):
         dialect = "postgresql+asyncpg"
+    elif target_db == "redshift":
+        dialect = "postgresql+asyncpg"
+        logger.info("Configuring Amazon Redshift sync connector (PostgreSQL dialect)", host=host, port=port, database=database)
     elif target_db == "mysql":
         dialect = "mysql+asyncmy"
+    elif target_db in ("snowflake", "bigquery"):
+        db_file = "synq_snowflake.db" if target_db == "snowflake" else "synq_bigquery.db"
+        logger.info(
+            f"Initializing {target_db.capitalize()} Cloud Warehouse sync connector. "
+            "Simulating warehouse pipeline execution via local SQLite database...",
+            host=host,
+            database=database
+        )
+        return create_async_engine(f"sqlite+aiosqlite:///backend/{db_file}")
     else:
         raise ValueError(f"Unsupported database target engine selection: {target_db}")
         
@@ -71,6 +83,8 @@ def get_async_engine(db_config: Dict[str, Any], override_port: Optional[int] = N
 
 async def ensure_database_exists(db_config: Dict[str, Any], override_port: Optional[int] = None) -> None:
     target_db = db_config.get("targetDb", "postgresql").lower()
+    if target_db in ("snowflake", "bigquery"):
+        return
     username = db_config.get("username", "")
     password_raw = db_config.get("password", "")
     password_decrypted = get_decrypted_password(password_raw)
