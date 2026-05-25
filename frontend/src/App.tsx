@@ -227,6 +227,12 @@ const DashboardLayout = () => {
           }
         } catch (err) {
           console.error(`Error polling task status for pipeline ${pipeline.id}:`, err)
+          if (axios.isAxiosError(err) && err.response?.status === 404) {
+            updatePipeline(pipeline.id, {
+              status: 'failed',
+              taskId: undefined
+            })
+          }
         }
       }
     }, 2000)

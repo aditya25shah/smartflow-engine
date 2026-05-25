@@ -1,5 +1,6 @@
 import time
 import logging
+import json
 from typing import Generator, List, Dict, Any, Optional
 import httpx
 
@@ -104,6 +105,8 @@ def extract_records_generator(
     offset = 0
     next_url = endpoint_url
     has_fetched = False
+    prev_records_sig = None
+    pages_fetched = 0
     
     with httpx.Client(limits=limits, timeout=30.0) as client:
         while True:
@@ -185,8 +188,21 @@ def extract_records_generator(
                 logger.info("Empty records set yielded. Concluding extraction stream.")
                 break
                 
+            records_sig = json.dumps(records[:5], sort_keys=True)
+            if prev_records_sig and prev_records_sig == records_sig:
+                break
+            prev_records_sig = records_sig
+            
+            pages_fetched += 1
+            if pages_fetched > 500:
+                logger.warning("Hard safety limit of MAX_PAGES reached. Terminating to prevent infinite loop.")
+                break
+                
             yield records
             has_fetched = True
+            
+            if len(records) < limit:
+                break
             
             # Shift cursors / offsets for subsequent page dial
             if pag_type == "page":
