@@ -19,7 +19,7 @@ export interface ActivePipeline {
 export const LiveDashboard: React.FC = () => {
   const { token } = useAuthStore()
   // Query active pipeline execution processes from the backend API, polling every 3 seconds
-  const { data: activePipelines, isLoading, error } = useQuery<ActivePipeline[]>({
+  const { data: activePipelines = [], isLoading, error } = useQuery<ActivePipeline[]>({
     queryKey: ['activePipelines', token],
     queryFn: async () => {
       try {
@@ -35,46 +35,10 @@ export const LiveDashboard: React.FC = () => {
       }
     },
     enabled: !!token,
-    refetchInterval: 3000,
-    // Add stable mock fallbacks internally if backend is unavailable or during local prototype development
-    initialData: [
-      {
-        id: 'pipe-1',
-        name: 'Stripe Payments Sync',
-        sourceUrl: 'https://api.stripe.com/v1/charges',
-        targetTable: 'stripe_ledger',
-        rowsFetched: 4120,
-        rowsInserted: 4120,
-        totalRows: 5000,
-        errorsCount: 0,
-        status: 'syncing'
-      },
-      {
-        id: 'pipe-2',
-        name: 'Hubspot Contacts Sync',
-        sourceUrl: 'https://api.hubapi.com/crm/v3/objects/contacts',
-        targetTable: 'hubspot_contacts',
-        rowsFetched: 12480,
-        rowsInserted: 12250,
-        totalRows: 25000,
-        errorsCount: 3,
-        status: 'syncing'
-      },
-      {
-        id: 'pipe-3',
-        name: 'Shopify Orders ETL',
-        sourceUrl: 'https://myshop.myshopify.com/admin/api/orders',
-        targetTable: 'shopify_orders',
-        rowsFetched: 1540,
-        rowsInserted: 1540,
-        totalRows: 1540,
-        errorsCount: 0,
-        status: 'completed'
-      }
-    ] as ActivePipeline[]
+    refetchInterval: 3000
   })
 
-  if (isLoading && !activePipelines) {
+  if (isLoading && activePipelines.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
         <RefreshCw className="h-6 w-6 text-text-secondary animate-spin" />
