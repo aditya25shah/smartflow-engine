@@ -1,4 +1,4 @@
-# Database Module 🗄️
+# Database Module
 
 This directory manages connection dialects and connection engine bootstrapping.
 

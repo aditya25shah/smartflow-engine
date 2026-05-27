@@ -1,4 +1,4 @@
-# Asynchronous ETL Workers Module ⚙️
+# Asynchronous ETL Workers Module
 
 This directory hosts Celery task managers, api stream extractions, and target loader modules.
 

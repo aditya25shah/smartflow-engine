@@ -1,10 +1,10 @@
-# API Module 🛡️
+# API Module
 
 This directory manages the FastAPI routing layer, request filters, rate limits, and authentication guards for **synq.to**.
 
 ---
 
-## 📂 Components
+## Components
 
 ### 1. [**`auth.py`**](auth.py)
 Manages workspaces (tenants) onboarding, team invitation distribution, and session credentials.
@@ -24,4 +24,3 @@ Orchestrates connections validation and task delegation.
 *   **ETL Dispatcher:**
     *   `POST /api/v1/pipelines/sync/{pipeline_id}`: Initiates an asynchronous Celery ETL task.
     *   `GET /api/v1/pipelines/tasks/{task_id}`: Standardized endpoint to check active records count and sync states from the Celery Redis backend.
-

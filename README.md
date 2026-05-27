@@ -10,7 +10,7 @@
 
 ---
 
-## 🗂 Monorepo Structure
+## Monorepo Structure
 
 ```
 synq.to/
@@ -22,35 +22,33 @@ synq.to/
 │   ├── utils/              # Encryption vault, SSH tunneling, logging
 │   ├── workers/            # Celery ETL tasks and stream extractors
 │   ├── main.py             # FastAPI application entrypoint
+│   ├── Dockerfile          # Backend development Docker configuration
 │   └── requirements.txt    # Python dependencies
-├── docker/                 # Docker helper configs and compose overrides
-│   └── .gitkeep
+├── docker/                 # Legacy/production Docker configurations
 ├── docs/                   # Architecture docs, API references, ADRs
 │   └── .gitkeep
-├── frontend/               # Reserved for standalone frontend builds
-│   └── .gitkeep
-├── src/                    # Active React + TypeScript frontend app
-│   ├── components/         # UI views (Login, Dashboard, Forms, Tables)
-│   ├── store/              # Zustand state management
-│   ├── types/              # Shared TypeScript interfaces
-│   └── lib/                # API client and shared utilities
+├── frontend/               # Standalone frontend build folder
+│   ├── src/                # Active React + TypeScript frontend app
+│   │   ├── components/     # UI views (Login, Dashboard, Forms, Tables)
+│   │   ├── store/          # Zustand state management
+│   │   ├── types/          # Shared TypeScript interfaces
+│   │   └── lib/            # API client and shared utilities
+│   ├── Dockerfile          # Frontend development Docker configuration
+│   ├── package.json        # Frontend Node.js manifest
+│   └── vite.config.ts      # Vite configuration file
 ├── tests/                  # Integration and end-to-end test suites
 │   └── .gitkeep
 ├── .dockerignore           # Docker build context exclusion rules
 ├── .env.example            # Environment variable template (copy to .env)
 ├── .gitignore              # VCS exclusion rules
-├── docker-compose.yml      # Full-stack local orchestration
-├── Dockerfile.backend      # Backend production image
-├── Dockerfile.frontend     # Frontend production image
+├── docker-compose.yml      # Monorepo full-stack local orchestration
 ├── LICENSE                 # MIT License
-├── netlify.toml            # Netlify SPA redirect config
-├── package.json            # Frontend Node.js manifest
 └── README.md               # You are here
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -63,14 +61,14 @@ synq.to/
 
 ---
 
-### 1 — Clone the Repository
+### 1 - Clone the Repository
 
 ```bash
 git clone https://github.com/aditya25shah/synq.to.git
 cd synq.to
 ```
 
-### 2 — Configure Environment
+### 2 - Configure Environment
 
 ```bash
 cp .env.example .env
@@ -80,25 +78,25 @@ Open `.env` and fill in your `JWT_SECRET_KEY`, `MASTER_VAULT_KEY`, `RESEND_API_K
 
 ---
 
-### 3 — Run with Docker Compose (Recommended)
+### 3 - Run with Docker Compose (Recommended)
 
-Spins up the FastAPI backend, Celery worker, Redis broker, and the Vite frontend in one command:
+Spins up the FastAPI backend, Celery worker, Redis broker, MySQL database, and the Vite frontend with hot-reloading enabled in one command:
 
 ```bash
-cd docker
 docker compose up --build
 ```
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:80 |
+| Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8000 |
 | API Docs (Swagger) | http://localhost:8000/docs |
 | Redis | localhost:6379 |
+| MySQL | localhost:3306 |
 
 ---
 
-### 4 — Run Services Manually
+### 4 - Run Services Manually
 
 #### Frontend (React + Vite)
 
@@ -127,7 +125,7 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
 
 ---
 
-## 🏗 Architecture Overview
+## Architecture Overview
 
 ```
  Browser (React SPA)
@@ -146,8 +144,8 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
    ┌───┴───────────────┐
    │                   │
    ▼                   ▼
-REST API Source    SQL Destination
-(httpx stream)     (asyncpg/asyncmy)
+ REST API Source    SQL Destination
+ (httpx stream)     (asyncpg/asyncmy)
 ```
 
 ### Key Design Principles
@@ -159,7 +157,7 @@ REST API Source    SQL Destination
 
 ---
 
-## 🔐 Security
+## Security
 
 - Passwords hashed with `bcrypt` via `passlib` — never stored in plain text.
 - JWT tokens embed `email`, `tenant_uuid`, and `role` to eliminate per-request database lookups.
@@ -169,7 +167,7 @@ REST API Source    SQL Destination
 
 ---
 
-## 📦 Tech Stack
+## Tech Stack
 
 ### Frontend
 | Library | Purpose |
@@ -199,7 +197,7 @@ REST API Source    SQL Destination
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the [MIT License](LICENSE).  
 Copyright © 2026 **synq.to**

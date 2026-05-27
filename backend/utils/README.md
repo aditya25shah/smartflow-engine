@@ -1,4 +1,4 @@
-# Utilities Module 🛠️
+# Utilities Module
 
 This directory hosts system utilities for security encryption and proxy network tunneling.
 

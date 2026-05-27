@@ -1,10 +1,10 @@
-# synq.to Frontend Source Code 💻
+# synq.to Frontend Source Code
 
 This directory houses the React, TypeScript, and Tailwind CSS frontend application for **synq.to**. It contains the complete client-side dashboard interfaces, multi-tenant authentication portal, drag-and-drop workspace connection flows, and live Celery task metrics polling.
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 
 *   [**`components/`**](components/): Reusable UI layouts and primary view modules:
     *   `Login.tsx`: Stark monochromatic entry page containing mock Google OAuth logic, tenant onboarding registration, and the first-login force password reset view.
@@ -22,7 +22,7 @@ This directory houses the React, TypeScript, and Tailwind CSS frontend applicati
 
 ---
 
-## ⚙️ Key Architectures
+## Key Architectures
 
 ### 1. Multi-Tenant Onboarding & RBAC
 The frontend is deeply integrated with role-based restrictions. Access to team directory management and connection modifications is strictly guarded on the client-side based on JWT payloads indicating a role of `Tenant_Admin` or `Super_Admin` versus `Tenant_User`.

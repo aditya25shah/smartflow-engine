@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: synq_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: synq_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: synq_target_db
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synq_api
+    ports:
+      - "8000:8000"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MASTER_VAULT_KEY=synq-development-secret-vault-key-change-me
+      - JWT_SECRET_KEY=synq-jwt-super-secret-key-change-me
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-synq.to <onboarding@resend.dev>}
+      - APP_LOGIN_URL=${APP_LOGIN_URL:-http://localhost:5173/login}
+    depends_on:
+      - redis
+      - mysql
+    volumes:
+      - ./backend:/app/backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: synq_worker
+    command: celery -A backend.workers.celery_app.app worker --loglevel=info
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MASTER_VAULT_KEY=synq-development-secret-vault-key-change-me
+      - JWT_SECRET_KEY=synq-jwt-super-secret-key-change-me
+    depends_on:
+      - redis
+      - mysql
+    volumes:
+      - ./backend:/app/backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: synq_web
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    extra_hosts:
+      - "localhost:host-gateway"
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

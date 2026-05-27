@@ -1,10 +1,10 @@
-# synq.to Core Backend Engine 🐍
+# synq.to Core Backend Engine
 
 This directory houses the Python-based backend engine for **synq.to**. It orchestrates user authentication, JWT-based RBAC, multi-tenant database thread-isolation, SSH Bastion tunnel configuration, secure AES-256-GCM credential encryption, and asynchronous ETL operations via Celery.
 
 ---
 
-## 📂 Directory Structure
+## Directory Structure
 
 *   [**`api/`**](api/): FastAPI route registrations:
     *   `auth.py`: Onboarding, user invitation flow, login endpoints, forced password reset, and SQLite multi-tenant workspace schema mappings. Holds thread-local context management (`contextvars`).
@@ -22,7 +22,7 @@ This directory houses the Python-based backend engine for **synq.to**. It orches
 
 ---
 
-## ⚙️ Configuration & Environment
+## Configuration & Environment
 
 The backend relies on the following environment variables:
 *   `MASTER_VAULT_KEY`: A 32-byte key (or string hashed to 32 bytes) used as the AES-256 encryption key to safeguard database passwords.
@@ -31,7 +31,7 @@ The backend relies on the following environment variables:
 
 ---
 
-## 🚀 Running the Backend locally
+## Running the Backend locally
 
 ### 1. Python Virtual Environment
 Navigate to the root directory, create a virtual environment, and install dependencies:
@@ -59,4 +59,3 @@ Execute the Celery asynchronous worker task manager (ensure a Redis server is ac
 ```bash
 celery -A backend.workers.celery_app worker --loglevel=info -P solo
 ```
-
