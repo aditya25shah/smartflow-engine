@@ -22,8 +22,8 @@ const registerSchema = z.object({
 })
 
 const resetSchema = z.object({
-  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Confirm password must be at least 8 characters'),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -324,7 +324,16 @@ export const Login: React.FC = () => {
         navigate('/dashboard')
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Authentication failed. Please verify credentials.')
+      if (err.response && err.response.status === 428) {
+        const { reset_token, tenant_name, role, email } = err.response.data.detail
+        setIsFirstLoginState(true)
+        setTempToken(reset_token)
+        setTempEmail(email)
+        setTempTenant(tenant_name)
+        setTempRole(role)
+      } else {
+        setError(err.response?.data?.detail || 'Authentication failed. Please verify credentials.')
+      }
     } finally {
       setIsAuthenticating(false)
     }

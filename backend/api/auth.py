@@ -82,6 +82,7 @@ def init_db():
         tenant_uuid TEXT,
         role TEXT NOT NULL,
         is_first_login INTEGER DEFAULT 1,
+        requires_password_reset INTEGER DEFAULT 0,
         google_linked INTEGER DEFAULT 0,
         google_id TEXT,
         invited_at TEXT,
@@ -99,7 +100,8 @@ def init_db():
         "tenant_uuid": "TEXT",
         "invited_at": "TEXT",
         "last_login_at": "TEXT",
-        "google_id": "TEXT"
+        "google_id": "TEXT",
+        "requires_password_reset": "INTEGER DEFAULT 0"
     })
     cols = table_columns(cursor, "tenants")
     if "uuid" in cols:
@@ -111,6 +113,7 @@ def init_db():
     cursor.execute("UPDATE tenants SET created_at = COALESCE(created_at, ?)", (datetime.utcnow().isoformat(),))
     cursor.execute("UPDATE users SET tenant_id = COALESCE(tenant_id, tenant_uuid)")
     cursor.execute("UPDATE users SET tenant_uuid = COALESCE(tenant_uuid, tenant_id)")
+    cursor.execute("UPDATE users SET requires_password_reset = 1 WHERE is_first_login = 1")
     for table in ("sources", "destinations", "connections", "logs"):
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {table} (
@@ -298,7 +301,7 @@ async def login(request: Request, payload: LoginRequest):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVITE_DENIED_MESSAGE)
         tenant_id = tenant_row["tenant_id"]
         cursor.execute(
-            "SELECT email, username, password, role, is_first_login FROM users WHERE (username = ? OR email = ?) AND tenant_id = ?",
+            "SELECT email, username, password, role, is_first_login, requires_password_reset FROM users WHERE (username = ? OR email = ?) AND tenant_id = ?",
             (username, username, tenant_id)
         )
         user_row = cursor.fetchone()
@@ -308,7 +311,7 @@ async def login(request: Request, payload: LoginRequest):
         tenant_name = tenant_row["name"]
     else:
         cursor.execute(
-            "SELECT email, username, password, role, is_first_login, tenant_id FROM users WHERE lower(email) = lower(?)",
+            "SELECT email, username, password, role, is_first_login, requires_password_reset, tenant_id FROM users WHERE lower(email) = lower(?)",
             (username,)
         )
         user_row = cursor.fetchone()
@@ -322,10 +325,21 @@ async def login(request: Request, payload: LoginRequest):
     if not pwd_context.verify(password, user_row["password"]):
         conn.close()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed. Invalid username or password.")
-    if int(user_row["is_first_login"]) == 1:
+    requires_reset = int(user_row["requires_password_reset"] or 0) == 1 or int(user_row["is_first_login"]) == 1
+    if requires_reset:
         reset_token = create_token(user_row["username"], user_row["email"], tenant_id, user_row["role"], "first_login_reset", RESET_TOKEN_EXPIRE_MINUTES)
         conn.close()
-        return build_login_response("reset_token", reset_token, tenant_id, tenant_name, user_row["role"], user_row["email"], True)
+        raise HTTPException(
+            status_code=428,
+            detail={
+                "message": "Password reset required",
+                "reset_token": reset_token,
+                "tenant_name": tenant_name,
+                "role": user_row["role"],
+                "email": user_row["email"],
+                "is_first_login": True
+            }
+        )
     cursor.execute(
         "UPDATE users SET last_login_at = ? WHERE email = ? AND tenant_id = ?",
         (datetime.utcnow().isoformat(), user_row["email"], tenant_id)
@@ -382,11 +396,11 @@ async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current
     if cursor.fetchone():
         conn.close()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email address already exists.")
-    alphabet = string.ascii_letters + string.digits
-    temp_password = "".join(secrets.choice(alphabet) for _ in range(12))
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    temp_password = "".join(secrets.choice(alphabet) for _ in range(14))
     tenant_id = claims["tenant_id"]
     cursor.execute(
-        "INSERT INTO users (email, username, password, tenant_id, tenant_uuid, role, is_first_login, invited_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
+        "INSERT INTO users (email, username, password, tenant_id, tenant_uuid, role, is_first_login, requires_password_reset, invited_at) VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?)",
         (invite_email, invite_name, pwd_context.hash(temp_password), tenant_id, tenant_id, invite_role, datetime.utcnow().isoformat())
     )
     cursor.execute("SELECT name FROM tenants WHERE tenant_id = ?", (tenant_id,))
@@ -419,20 +433,37 @@ async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current
         except Exception:
             email_error = "Resend request failed."
             email_sent = False
-    return InviteResponse(email=invite_email, name=invite_name, role=invite_role, temp_password=temp_password, email_sent=email_sent, resend_configured=bool(resend_api_key), email_error=email_error)
+    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "http://n8n:5678/webhook/user-onboarding")
+    n8n_triggered = False
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            res = await client.post(
+                n8n_webhook_url,
+                json={
+                    "user_email": invite_email,
+                    "temp_password": temp_password
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            n8n_triggered = res.status_code in (200, 201, 202)
+    except Exception:
+        pass
+    if n8n_triggered:
+        email_sent = True
+    return InviteResponse(email=invite_email, name=invite_name, role=invite_role, temp_password="", email_sent=email_sent, resend_configured=bool(resend_api_key or n8n_triggered), email_error=email_error)
 
 
 @router.post("/reset-password", response_model=LoginResponse)
 async def reset_password(payload: ResetPasswordRequest, claims: dict = Depends(get_reset_claims)):
     new_password = payload.new_password
-    if not new_password or len(new_password) < 6:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters.")
+    if not new_password or len(new_password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters.")
     tenant_id = claims["tenant_id"]
     email = claims["email"]
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE users SET password = ?, is_first_login = 0, last_login_at = ? WHERE email = ? AND tenant_id = ? AND is_first_login = 1",
+        "UPDATE users SET password = ?, is_first_login = 0, requires_password_reset = 0, last_login_at = ? WHERE email = ? AND tenant_id = ? AND (is_first_login = 1 OR requires_password_reset = 1)",
         (pwd_context.hash(new_password), datetime.utcnow().isoformat(), email, tenant_id)
     )
     if cursor.rowcount != 1:
