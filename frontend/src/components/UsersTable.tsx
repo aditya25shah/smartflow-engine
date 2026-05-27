@@ -72,14 +72,12 @@ export const UsersTable: React.FC = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      const { temp_password, email_sent, resend_configured, email_error } = response.data
+      const { temp_password, email_sent, email_error } = response.data
       setTempPassword(temp_password)
       setSuccessMessage(
         email_sent
-          ? `Teammate successfully invited. Invitation email sent via Resend.`
-          : resend_configured
-            ? `Teammate invited, but Resend rejected the email request: ${email_error || 'Unknown Resend error.'}`
-            : `Teammate invited! Since Resend API key is unconfigured, copy their temporary password below:`
+          ? `Teammate successfully invited. Invitation email sent via n8n Webhook.`
+          : `Teammate invited, but Webhook request failed: ${email_error || 'Unknown error.'}`
       )
       setNameInput('')
       setEmailInput('')

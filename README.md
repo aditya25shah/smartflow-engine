@@ -74,7 +74,7 @@ cd synq.to
 cp .env.example .env
 ```
 
-Open `.env` and fill in your `JWT_SECRET_KEY`, `MASTER_VAULT_KEY`, `RESEND_API_KEY`, and `REDIS_URL`.
+Open `.env` and fill in your `JWT_SECRET_KEY`, `MASTER_VAULT_KEY`, `N8N_WEBHOOK_URL`, and `REDIS_URL`.
 
 ---
 

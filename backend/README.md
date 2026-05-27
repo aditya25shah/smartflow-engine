@@ -27,7 +27,8 @@ This directory houses the Python-based backend engine for **synq.to**. It orches
 The backend relies on the following environment variables:
 *   `MASTER_VAULT_KEY`: A 32-byte key (or string hashed to 32 bytes) used as the AES-256 encryption key to safeguard database passwords.
 *   `JWT_SECRET_KEY`: Standard secret phrase to sign and verify authorization tokens.
-*   `RESEND_API_KEY`: API token used by the Resend SDK to dispatch workspace team invitations (falls back to local logs when missing).
+*   `N8N_WEBHOOK_URL`: Webhook URL used to dispatch workspace team invitations via n8n.
+*   `POSTGRES_SERVER`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`: PostgreSQL connection details.
 
 ---
 

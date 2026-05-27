@@ -1,40 +1,29 @@
-"""Configuration settings for SmartFlow Engine."""
-
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
+from pydantic import PostgresDsn, computed_field
+from pydantic_core import MultiHostUrl
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Config:
-    """Base configuration."""
-    DEBUG = False
-    TESTING = False
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", env_ignore_empty=True, extra="ignore"
+    )
+    POSTGRES_SERVER: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+    POSTGRES_PORT: int = 5432
+
+    @computed_field
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+        return MultiHostUrl.build(
+            scheme="postgresql+psycopg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB,
+        )
 
 
-class DevelopmentConfig(Config):
-    """Development configuration."""
-    DEBUG = True
-    ENVIRONMENT = 'development'
-
-
-class ProductionConfig(Config):
-    """Production configuration."""
-    DEBUG = False
-    ENVIRONMENT = 'production'
-
-
-class TestingConfig(Config):
-    """Testing configuration."""
-    TESTING = True
-    ENVIRONMENT = 'testing'
-
-
-config = {
-    'development': DevelopmentConfig,
-    'production': ProductionConfig,
-    'testing': TestingConfig,
-    'default': DevelopmentConfig
-}
+settings = Settings()

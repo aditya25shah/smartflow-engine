@@ -192,7 +192,6 @@ class InviteResponse(BaseModel):
     role: str
     temp_password: str
     email_sent: bool
-    resend_configured: bool = False
     email_error: Optional[str] = None
 
 
@@ -409,34 +408,11 @@ async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current
     conn.close()
     tenant_name = tenant_name_row["name"] if tenant_name_row else "your workspace"
     admin_email = claims.get("email")
-    resend_api_key = os.getenv("RESEND_API_KEY")
+    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "https://aditya546shah.app.n8n.cloud/webhook/user-onboarding")
     email_sent = False
     email_error = None
-    if resend_api_key:
-        try:
-            from_email = os.getenv("RESEND_FROM_EMAIL") or "synq.to <onboarding@resend.dev>"
-            async with httpx.AsyncClient(timeout=10) as client:
-                res = await client.post(
-                    "https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {resend_api_key}", "Content-Type": "application/json"},
-                    json={
-                        "from": from_email,
-                        "to": [invite_email],
-                        "reply_to": admin_email,
-                        "subject": f"Invitation to {tenant_name} on synq.to",
-                        "html": f"<p>Hello {invite_name},</p><p>You have been invited to {tenant_name} on synq.to.</p><p>Login URL: {os.getenv('APP_LOGIN_URL') or '/login'}<br/>Email: {invite_email}<br/>Temporary Password: <strong>{temp_password}</strong></p>"
-                    }
-                )
-                email_sent = res.status_code in (200, 201, 202)
-                if not email_sent:
-                    email_error = res.text
-        except Exception:
-            email_error = "Resend request failed."
-            email_sent = False
-    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "http://n8n:5678/webhook/user-onboarding")
-    n8n_triggered = False
     try:
-        async with httpx.AsyncClient(timeout=3) as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             res = await client.post(
                 n8n_webhook_url,
                 json={
@@ -445,12 +421,12 @@ async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current
                 },
                 headers={"Content-Type": "application/json"}
             )
-            n8n_triggered = res.status_code in (200, 201, 202)
-    except Exception:
-        pass
-    if n8n_triggered:
-        email_sent = True
-    return InviteResponse(email=invite_email, name=invite_name, role=invite_role, temp_password="", email_sent=email_sent, resend_configured=bool(resend_api_key or n8n_triggered), email_error=email_error)
+            email_sent = res.status_code in (200, 201, 202)
+            if not email_sent:
+                email_error = res.text
+    except Exception as exc:
+        email_error = str(exc)
+    return InviteResponse(email=invite_email, name=invite_name, role=invite_role, temp_password="", email_sent=email_sent, email_error=email_error)
 
 
 @router.post("/reset-password", response_model=LoginResponse)

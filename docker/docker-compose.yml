@@ -33,8 +33,12 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - MASTER_VAULT_KEY=synq-development-secret-vault-key-change-me
       - JWT_SECRET_KEY=synq-jwt-super-secret-key-change-me
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-synq.to <onboarding@resend.dev>}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://aditya546shah.app.n8n.cloud/webhook/user-onboarding}
+      - POSTGRES_SERVER=${POSTGRES_SERVER:-localhost}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgrespassword}
+      - POSTGRES_DB=${POSTGRES_DB:-synq_auth_db}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
       - APP_LOGIN_URL=${APP_LOGIN_URL:-http://localhost/login}
       - DATABASE_URL=mysql+asyncmy://synq_user:password@mysql:3306/synq_target_db
     depends_on:
@@ -56,6 +60,11 @@ services:
       - MASTER_VAULT_KEY=synq-development-secret-vault-key-change-me
       - JWT_SECRET_KEY=synq-jwt-super-secret-key-change-me
       - DATABASE_URL=mysql+asyncmy://synq_user:password@mysql:3306/synq_target_db
+      - POSTGRES_SERVER=${POSTGRES_SERVER:-localhost}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgrespassword}
+      - POSTGRES_DB=${POSTGRES_DB:-synq_auth_db}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
     depends_on:
       - redis
       - mysql
