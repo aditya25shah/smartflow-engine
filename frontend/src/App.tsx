@@ -23,7 +23,8 @@ import {
   Menu,
   ChevronLeft,
   Globe,
-  Network
+  Network,
+  BookOpen
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { usePipelineStore } from '@/store/pipelineStore'
@@ -37,6 +38,8 @@ import { RoleBuilder } from '@/components/RoleBuilder'
 import { Login } from '@/components/Login'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { LiveDashboard } from '@/components/LiveDashboard'
+import { MappingCanvas } from '@/components/MappingCanvas'
+import { RAGPanel } from '@/components/RAGPanel'
 import { Toaster } from 'sonner'
 
 const DashboardLayout = () => {
@@ -297,6 +300,8 @@ const DashboardLayout = () => {
     { path: '/sources', label: 'Sources', icon: Globe },
     { path: '/destinations', label: 'Destinations', icon: Database },
     { path: '/pipelines', label: 'Connections', icon: Network },
+    { path: '/mapper', label: 'Schema Mapper', icon: Sliders },
+    { path: '/analysis', label: 'Document AI', icon: BookOpen },
     { path: '/live', label: 'Live Sync', icon: Cpu },
   ]
 
@@ -504,6 +509,8 @@ const DashboardLayout = () => {
               }
             />
             <Route path="live" element={<LiveDashboard />} />
+            <Route path="mapper" element={<MappingCanvas />} />
+            <Route path="analysis" element={<RAGPanel />} />
             <Route path="users" element={<UsersTable />} />
             <Route path="roles" element={<RoleBuilder />} />
             <Route path="*" element={<Navigate to="dashboard" replace />} />

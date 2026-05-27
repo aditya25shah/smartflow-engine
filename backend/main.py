@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from backend.api import pipelines
+from backend.api.documents import router as documents_router
 from backend.api.auth import router as auth_router, get_tenant_uuid
 from backend.utils.logging import configure_logging, logger, tenant_uuid_context
 from backend.utils.limiter import limiter
@@ -34,6 +35,7 @@ app.add_middleware(
 # Register authentication routing
 app.include_router(auth_router)
 app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["pipelines"])
+app.include_router(documents_router)
 
 
 @app.get("/")

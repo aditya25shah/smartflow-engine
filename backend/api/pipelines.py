@@ -364,3 +364,24 @@ async def get_task_status(task_id: str, claims: dict = Depends(get_current_user_
             conn_update.commit()
             conn_update.close()
     return data
+
+
+@router.post("/{id}/auth-driver")
+async def save_auth_driver(
+    id: str,
+    payload: Dict[str, str] = Body(...),
+    claims: dict = Depends(get_current_user_claims)
+) -> Dict[str, str]:
+    tenant_id = claims.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized: tenant_id is missing.")
+    read_tenant_row("connections", tenant_id, id)
+    code = payload.get("code")
+    if not code:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing code field.")
+    drivers_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "auth_drivers")
+    os.makedirs(drivers_dir, exist_ok=True)
+    driver_path = os.path.join(drivers_dir, f"{id}_auth_driver.py")
+    with open(driver_path, "w", encoding="utf-8") as f:
+        f.write(code)
+    return {"status": "success", "message": "Auth driver saved successfully."}
