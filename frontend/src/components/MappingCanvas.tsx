@@ -16,6 +16,8 @@ import {
 } from '@xyflow/react'
 import type { NodeProps, EdgeProps, Connection, Edge, Node } from '@xyflow/react'
 import { Database, Check, Play } from 'lucide-react'
+import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
 import '@xyflow/react/dist/style.css'
 
 export const CustomMappingEdge: React.FC<EdgeProps> = ({
@@ -159,16 +161,32 @@ interface MappingCanvasProps {
   targetColumns?: string[]
 }
 
-const MappingCanvasInner: React.FC<MappingCanvasProps> = ({
-  sourceKeys = ['user_id', 'email', 'created_at', 'status_flag', 'total_spent', 'ip_address'],
-  targetColumns = ['id', 'contact_email', 'signup_date', 'active_status', 'lifetime_value', 'signup_ip']
-}) => {
+const MappingCanvasInner: React.FC<MappingCanvasProps> = () => {
+  const { token } = useAuthStore()
+  const [sourceKeys, setSourceKeys] = useState<string[]>([])
+  const [targetColumns, setTargetColumns] = useState<string[]>([])
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [serializedPayload, setSerializedPayload] = useState<string | null>(null)
 
   useEffect(() => {
+    const fetchSchema = async () => {
+      try {
+        const response = await axios.get('/api/v1/pipelines/active/schema', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setSourceKeys(response.data.sourceKeys)
+        setTargetColumns(response.data.targetColumns)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    fetchSchema()
+  }, [token])
+
+  useEffect(() => {
+    if (sourceKeys.length === 0 && targetColumns.length === 0) return
     const mappedNodes: Node[] = [
       {
         id: 'source-node',
@@ -201,21 +219,26 @@ const MappingCanvasInner: React.FC<MappingCanvasProps> = ({
     [setEdges]
   )
 
-  const handleSaveMapping = () => {
+  const handleSaveMapping = async () => {
     const serialized = edges.map((edge: Edge) => ({
       source_key: edge.sourceHandle,
       target_key: edge.targetHandle,
       rule: edge.data?.rule || 'NONE'
     }))
 
-    console.log('Serialized Schema Mappings:', serialized)
-    setSerializedPayload(JSON.stringify(serialized, null, 2))
-    setSaveSuccess(true)
-
-    setTimeout(() => {
-      setSaveSuccess(false)
-      setSerializedPayload(null)
-    }, 5000)
+    try {
+      await axios.post('/api/v1/mappings', serialized, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setSerializedPayload(JSON.stringify(serialized, null, 2))
+      setSaveSuccess(true)
+      setTimeout(() => {
+        setSaveSuccess(false)
+        setSerializedPayload(null)
+      }, 5000)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   return (

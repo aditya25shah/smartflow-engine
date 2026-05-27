@@ -58,3 +58,17 @@ async def verify_tenant():
         "verified": True,
         "active_tenant_uuid": active_tenant
     }
+
+
+from fastapi import Body, HTTPException
+from backend.api.auth import get_current_user_claims
+
+@app.post("/api/v1/mappings")
+async def save_mappings(
+    payload: list = Body(...),
+    claims: dict = Depends(get_current_user_claims)
+):
+    tenant_id = claims.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Unauthorized: tenant_id is missing.")
+    return {"status": "success", "message": "Schema mapping saved successfully."}

@@ -63,9 +63,9 @@ export const RAGPanel: React.FC = () => {
         }
       })
       await fetchDocuments()
-      setSelectedDoc(file.filename)
+      setSelectedDoc(file.name)
     } catch (error) {
-      console.error('Upload failed:', error)
+      console.error(error)
     } finally {
       setUploading(false)
     }
@@ -89,7 +89,10 @@ export const RAGPanel: React.FC = () => {
     try {
       const response = await axios.post(
         '/api/v1/documents/query',
-        { query: userMsg.text },
+        {
+          query: userMsg.text,
+          document_ids: selectedDoc ? [selectedDoc] : []
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
@@ -102,7 +105,7 @@ export const RAGPanel: React.FC = () => {
 
       setChatHistory((prev) => [...prev, assistantMsg])
     } catch (error) {
-      console.error('Query failed:', error)
+      console.error(error)
       const errorMsg: ChatMessage = {
         id: String(Date.now() + 1),
         sender: 'assistant',

@@ -34,16 +34,16 @@
 }
 
 :root.light {
-  --bg-background: #000000;
-  --bg-panel: #09090b;
-  --bg-panel-card: #0f0f11;
-  --border-primary: #18181b;
-  --border-secondary: #27272a;
-  --text-primary: #ffffff;
-  --text-secondary: #d4d4d8;
+  --bg-background: #ffffff;
+  --bg-panel: #f4f4f5;
+  --bg-panel-card: #fafafa;
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --text-primary: #09090b;
+  --text-secondary: #27272a;
   --text-muted: #71717a;
-  --accent-action: #ffffff;
-  --accent-action-hover: #e4e4e7;
+  --accent-action: #09090b;
+  --accent-action-hover: #27272a;
 }
 
 @layer base {

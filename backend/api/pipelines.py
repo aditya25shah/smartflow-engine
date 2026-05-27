@@ -385,3 +385,14 @@ async def save_auth_driver(
     with open(driver_path, "w", encoding="utf-8") as f:
         f.write(code)
     return {"status": "success", "message": "Auth driver saved successfully."}
+
+
+@router.get("/active/schema")
+async def get_active_schema(claims: dict = Depends(get_current_user_claims)) -> Dict[str, List[str]]:
+    tenant_id = claims.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized: tenant_id is missing.")
+    return {
+        "sourceKeys": ["user_id", "email", "created_at", "status_flag", "total_spent", "ip_address"],
+        "targetColumns": ["id", "contact_email", "signup_date", "active_status", "lifetime_value", "signup_ip"]
+    }

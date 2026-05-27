@@ -18,6 +18,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 class QueryRequest(BaseModel):
     query: str
+    document_ids: Optional[List[str]] = None
 
 class ExportRequest(BaseModel):
     format: str
@@ -32,7 +33,7 @@ def compute_cosine_distance(v1: list, v2: list) -> float:
         return 1.0
     return 1.0 - (dot_prod / (mag1 * mag2))
 
-async def retrieve_relevant_chunks(tenant_id: str, query: str) -> list:
+async def retrieve_relevant_chunks(tenant_id: str, query: str, document_ids: Optional[List[str]] = None) -> list:
     try:
         config = get_tenant_db_config(tenant_id)
     except Exception:
@@ -42,12 +43,10 @@ async def retrieve_relevant_chunks(tenant_id: str, query: str) -> list:
             "database": "synq_target_db",
             "username": "root"
         }
-    
     engine = get_async_engine(config)
     is_sqlite = engine.url.drivername.startswith("sqlite")
     query_vector = generate_deterministic_embedding(query)
     chunks = []
-    
     async with engine.connect() as conn:
         if is_sqlite:
             try:
@@ -55,6 +54,8 @@ async def retrieve_relevant_chunks(tenant_id: str, query: str) -> list:
                 rows = result.fetchall()
                 scored_chunks = []
                 for row in rows:
+                    if document_ids and row[0] not in document_ids:
+                        continue
                     try:
                         emb = json.loads(row[3])
                         dist = compute_cosine_distance(query_vector, emb)
@@ -74,12 +75,21 @@ async def retrieve_relevant_chunks(tenant_id: str, query: str) -> list:
             safe_schema = f"tenant_{tenant_id.replace('-', '_')}"
             vec_str = "[" + ",".join(map(str, query_vector)) + "]"
             try:
-                result = await conn.execute(text(f"""
-                    SELECT content, document_name, chunk_index, (embedding <=> :query_emb::vector) AS distance
-                    FROM "{safe_schema}".document_chunks
-                    ORDER BY distance ASC
-                    LIMIT 5
-                """), {"query_emb": vec_str})
+                if document_ids:
+                    result = await conn.execute(text(f"""
+                        SELECT content, document_name, chunk_index, (embedding <=> :query_emb::vector) AS distance
+                        FROM "{safe_schema}".document_chunks
+                        WHERE document_name IN :doc_ids
+                        ORDER BY distance ASC
+                        LIMIT 5
+                    """), {"query_emb": vec_str, "doc_ids": tuple(document_ids)})
+                else:
+                    result = await conn.execute(text(f"""
+                        SELECT content, document_name, chunk_index, (embedding <=> :query_emb::vector) AS distance
+                        FROM "{safe_schema}".document_chunks
+                        ORDER BY distance ASC
+                        LIMIT 5
+                    """), {"query_emb": vec_str})
                 rows = result.fetchall()
                 for row in rows:
                     chunks.append({
@@ -188,7 +198,7 @@ async def query_documents(request: QueryRequest, tenant_id: str = Depends(get_te
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized: tenant_id is missing."
         )
-    chunks = await retrieve_relevant_chunks(tenant_id, request.query)
+    chunks = await retrieve_relevant_chunks(tenant_id, request.query, request.document_ids)
     answer = await query_llm(request.query, chunks)
     return {
         "answer": answer,
