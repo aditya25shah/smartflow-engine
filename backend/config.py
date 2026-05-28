@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
     POSTGRES_PORT: int = 5432
+    N8N_WEBHOOK_URL: str = "https://aditya546shah.app.n8n.cloud/webhook/user-onboarding"
 
     @computed_field
     @property
