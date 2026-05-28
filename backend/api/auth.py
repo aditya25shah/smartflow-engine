@@ -262,9 +262,6 @@ def get_tenant_uuid(credentials: HTTPAuthorizationCredentials = Depends(security
     return claims["tenant_id"]
 
 
-def email_domain(email: str) -> str:
-    return email.split("@", 1)[1].lower() if "@" in email else ""
-
 
 def build_login_response(token_key: str, token: str, tenant_id: str, tenant_name: str, role: str, email: str, is_first_login: bool):
     data = {
@@ -407,7 +404,6 @@ async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current
     conn.commit()
     conn.close()
     tenant_name = tenant_name_row["name"] if tenant_name_row else "your workspace"
-    admin_email = claims.get("email")
     n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "https://aditya546shah.app.n8n.cloud/webhook/user-onboarding")
     email_sent = False
     email_error = None
