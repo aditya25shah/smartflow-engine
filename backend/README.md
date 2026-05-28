@@ -7,7 +7,7 @@ This directory houses the Python-based backend engine for **synq.to**. It orches
 ## Directory Structure
 
 *   [**`api/`**](api/): FastAPI route registrations:
-    *   `auth.py`: Onboarding, user invitation flow, login endpoints, forced password reset, and SQLite multi-tenant workspace schema mappings. Holds thread-local context management (`contextvars`).
+    *   `auth.py`: Onboarding, user invitation flow, login endpoints, forced password reset, and PostgreSQL multi-tenant workspace schema mappings. Holds thread-local context management (`contextvars`).
     *   `pipelines.py`: Endpoint to trigger and check Celery ETL pipeline progress/results.
 *   [**`database/`**](database/): Database connection factory:
     *   `factory.py`: Generates SQL dialect drivers (`postgresql+asyncpg` / `mysql+asyncmy`) with dynamic database credential decryption and client connection pooling.
