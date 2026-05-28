@@ -132,7 +132,7 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
        │
        │  REST + JWT
        ▼
- FastAPI  ──────────► SQLite (Auth / Tenants)
+ FastAPI  ──────────► PostgreSQL (Auth / Tenants)
        │
        │  Celery Task Dispatch
        ▼
@@ -185,7 +185,7 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
 |---------|---------|
 | FastAPI | HTTP API framework |
 | SQLAlchemy 2.0 (async) | ORM and connection pool |
-| SQLite | Multi-tenant auth and user store |
+| PostgreSQL | Multi-tenant auth and user store |
 | Celery + Redis | Async ETL task queue |
 | httpx | Resilient HTTP extraction client |
 | python-jose | JWT signing and verification |
