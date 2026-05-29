@@ -1,12 +1,7 @@
 # synq.to
 
-> **Enterprise-grade Universal Data Sync Engine.**
-> Zero-touch ETL. Auto-infer schemas and sync databases in minutes, not days.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-white.svg)](LICENSE)
-[![Built with FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](backend/)
-[![Built with React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)](src/)
-[![Powered by Celery](https://img.shields.io/badge/Workers-Celery%20%2B%20Redis-green)](backend/workers/)
+Enterprise-grade Universal Data Sync Engine.
+Zero-touch ETL. Auto-infer schemas and sync databases in minutes, not days.
 
 ---
 
@@ -48,6 +43,54 @@ synq.to/
 
 ---
 
+## Monorepo Component Details
+
+### Backend Core (backend/)
+The backend is a FastAPI application orchestrating user authentication, JWT-based RBAC, multi-tenant database thread-isolation, SSH Bastion tunnel configuration, secure AES-256-GCM credential encryption, and asynchronous ETL operations via Celery.
+
+*   **API Module (backend/api/)**: FastAPI route registrations:
+    *   auth.py: Onboarding, user invitation flow, login endpoints, forced password reset, and PostgreSQL multi-tenant workspace schema mappings. Manages thread-local context using Python contextvars.
+    *   pipelines.py: Endpoint to trigger and check Celery ETL pipeline progress and results.
+*   **Database Module (backend/database/)**: Database connection factory:
+    *   factory.py: Generates SQL dialect drivers (postgresql+asyncpg / mysql+asyncmy) with dynamic database credential decryption and client connection pooling. Enforces strict execution limits (pool_size=20, max_overflow=10, pool_timeout=30, pool_pre_ping=True) to maintain socket stability during bulk transfers.
+*   **Utilities Module (backend/utils/)**: Security and infrastructure helpers:
+    *   encryption.py: AES-256-GCM encryption vault powered by cryptography.hazmat. Hashes environmental MASTER_VAULT_KEY values to verify exactly 32-byte master parameters.
+    *   tunneling.py: Context-managed SSH Bastion tunnel generator via sshtunnel and paramiko. Evaluates PEM private keys purely in-memory (using StringIO) to avoid disk storage and disposes tunnel threads in a finally block to prevent port exhaustion.
+    *   logging.py and limiter.py: Structured JSON logger (structlog) and client request rate-limiting utilities (slowapi).
+*   **Asynchronous Workers (backend/workers/)**: Asynchronous ETL tasks:
+    *   celery_app.py: Celery instance configuration backed by Redis. Configured to avoid OOM faults: worker_max_tasks_per_child=50 (forces process recycling), task_acks_late=True (guarantees delivery), and worker_prefetch_multiplier=1 (prevents hoarding).
+    *   tasks.py: Standardized extract-transform-load tasks buffering up to 5,000 items per bulk query insert.
+    *   extractors.py: Stream-oriented paging connectors yielding results using Python generators (yield) to limit memory footprints, with exponential backoffs and Retry-After header parsing.
+
+### Frontend Application (frontend/)
+The frontend is a React, TypeScript, and Tailwind CSS application providing a monochromatic interface for system administration.
+
+*   **Components (frontend/src/components/)**: Reusable UI layouts and primary view modules:
+    *   Login.tsx: Monochromatic entry page containing mock Google OAuth logic, tenant onboarding registration, and the first-login force password reset view.
+    *   CreatePipelineForm.tsx: Multi-step wizard to register sources, choose database targets, map schemas, and schedule sync cycles.
+    *   PipelinesTable.tsx: Connection monitor displaying pipeline details, last sync state, and inline controls to trigger sync execution.
+    *   LiveDashboard.tsx: Monochromatic logs streaming panel and task progress tracker for active ETL processes.
+    *   UsersTable.tsx: RBAC directory listing teammate invitations, registration status, and workspace role assignments.
+*   **Zustand Store (frontend/src/store/)**: Global state management:
+    *   authStore.ts: Coordinates JWT tokens, tenant details, password reset states, and user sessions.
+    *   pipelineStore.ts: Standardizes connection status tracking and stores loaded configuration profiles.
+*   **Types (frontend/src/types/)**: TypeScript interface definitions:
+    *   index.ts: Strong typing specifications for Pipeline, Source, Destination, User, Tenant, and JWT payload claims.
+
+---
+
+## Configuration and Environment
+
+The backend relies on the following environment variables:
+*   MASTER_VAULT_KEY: A 32-byte key (or string hashed to 32 bytes) used as the AES-256 encryption key to safeguard database passwords.
+*   JWT_SECRET_KEY: Standard secret phrase to sign and verify authorization tokens.
+*   N8N_WEBHOOK_URL: Webhook URL used to dispatch workspace team invitations via n8n.
+*   POSTGRES_SERVER, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_PORT: PostgreSQL connection details.
+*   DB_POOL_SIZE: Database pool configuration (default is 5).
+*   SERVICE_NAME: Configurable name of the running backend instance (default is "Synq.to").
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -74,7 +117,7 @@ cd synq.to
 cp .env.example .env
 ```
 
-Open `.env` and fill in your `JWT_SECRET_KEY`, `MASTER_VAULT_KEY`, `N8N_WEBHOOK_URL`, and `REDIS_URL`.
+Open .env and fill in your JWT_SECRET_KEY, MASTER_VAULT_KEY, N8N_WEBHOOK_URL, and REDIS_URL.
 
 ---
 
@@ -150,20 +193,22 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
 
 ### Key Design Principles
 
-- **Multi-Tenant RBAC:** Every request carries a JWT embedding `tenant_uuid` and `role`. All database queries are isolated per tenant via `contextvars.ContextVar`.
-- **Zero Plain-Text Secrets:** Database passwords are encrypted at rest using AES-256-GCM before any storage.
-- **Stream-First ETL:** Extractors use Python generators to page through API responses without loading full datasets into memory.
-- **Strict Monochrome UI:** The frontend enforces a True Black (`#000000`) / Pure White (`#FFFFFF`) design system with no color dependencies.
+*   Multi-Tenant RBAC: Every request carries a JWT embedding tenant_uuid and role. All database queries are isolated per tenant via contextvars.ContextVar.
+*   Zero Plain-Text Secrets: Database passwords are encrypted at rest using AES-256-GCM before any storage.
+*   Stream-First ETL: Extractors use Python generators to page through API responses without loading full datasets into memory.
+*   Strict Monochrome UI: The frontend enforces a True Black (#000000) / Pure White (#FFFFFF) design system with no color dependencies.
+*   Live Task Telemetry Polling: When a connection is triggered, the client executes an active polling loop against the FastAPI /api/v1/pipelines/tasks/{task_id} worker endpoint every 2 seconds, reactively committing pipeline record counts and execution state changes to the local state.
+*   Client-Side PEM Parsing: SSH private keys drop-zones serialize file text contents in-memory via browser FileReader API rather than uploading raw credential streams, enabling secure transfer payloads directly to the backend AES-256 vault.
 
 ---
 
 ## Security
 
-- Passwords hashed with `bcrypt` via `passlib` — never stored in plain text.
-- JWT tokens embed `email`, `tenant_uuid`, and `role` to eliminate per-request database lookups.
-- SSH private keys are read client-side via `FileReader` and transmitted encrypted — never stored to disk.
-- AES-256-GCM encryption (via `cryptography.hazmat`) for all credential storage.
-- SlowAPI rate limiting on all public endpoints.
+*   Passwords hashed with bcrypt via passlib — never stored in plain text.
+*   JWT tokens embed email, tenant_uuid, and role to eliminate per-request database lookups.
+*   SSH private keys are read client-side via FileReader and transmitted encrypted — never stored to disk.
+*   AES-256-GCM encryption (via cryptography.hazmat) for all credential storage.
+*   SlowAPI rate limiting on all public endpoints.
 
 ---
 
@@ -199,5 +244,5 @@ celery -A backend.workers.celery_app worker --loglevel=info -P solo
 
 ## License
 
-Distributed under the [MIT License](LICENSE).  
-Copyright © 2026 **synq.to**
+Distributed under the MIT License.  
+Copyright (C) 2026 synq.to
