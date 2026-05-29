@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from backend.database import get_pg_connection
 from backend.utils.limiter import limiter
 from backend.utils.logging import tenant_uuid_context
-from backend.services import auth_service
+from backend.services.auth_service import AuthService
+
+auth_service = AuthService()
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "synq-jwt-super-secret-key-change-me")
 JWT_ALGORITHM = "HS256"

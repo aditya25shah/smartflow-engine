@@ -6,16 +6,15 @@ from fastapi.testclient import TestClient
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "OneDrive", "Desktop", "smartflow")))
 
 from backend.main import app
-from backend.services.auth_service import create_token
+from backend.services.auth_service import AuthService
 from backend.database import get_pg_connection
 
 def run_tests():
     client = TestClient(app)
-    
-    # 1. Generate test tokens with purpose="access"
-    token_tenant_a = create_token("userA", "usera@tenant.com", "tenant-a-123", "Tenant_User", "access", 60)
-    token_tenant_b = create_token("userB", "userb@tenant.com", "tenant-b-456", "Tenant_User", "access", 60)
-    token_no_tenant = create_token("userC", "userc@tenant.com", "", "Tenant_User", "access", 60) # Empty/missing tenant_id
+    auth_service = AuthService()
+    token_tenant_a = auth_service.create_token("userA", "usera@tenant.com", "tenant-a-123", "Tenant_User", "access", 60)
+    token_tenant_b = auth_service.create_token("userB", "userb@tenant.com", "tenant-b-456", "Tenant_User", "access", 60)
+    token_no_tenant = auth_service.create_token("userC", "userc@tenant.com", "", "Tenant_User", "access", 60)
     
     headers_a = {"Authorization": f"Bearer {token_tenant_a}"}
     headers_b = {"Authorization": f"Bearer {token_tenant_b}"}

@@ -2,7 +2,9 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from backend.database import get_pg_connection
 from backend.api.routes.auth import get_current_user_claims
-from backend.services import pipeline_service
+from backend.services.pipeline_service import PipelineService
+
+pipeline_service = PipelineService()
 
 router = APIRouter()
 

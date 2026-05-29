@@ -3,7 +3,9 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from backend.api.routes.auth import get_tenant_uuid
-from backend.services import document_service
+from backend.services.document_service import DocumentService
+
+document_service = DocumentService()
 
 router = APIRouter(
     prefix="/api/v1/documents",
