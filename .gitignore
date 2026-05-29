@@ -49,3 +49,5 @@ venv/
 node_modules/
 *.node
 
+# Uploads directory
+backend/uploads/
