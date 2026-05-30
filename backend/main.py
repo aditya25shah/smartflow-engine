@@ -22,6 +22,10 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 logger.info("Security rate limiter initialized successfully")
 
+from backend.api.middleware import GlobalMiddleware
+
+app.add_middleware(GlobalMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,13 +41,23 @@ app.include_router(root_router)
 
 @app.on_event("startup")
 def on_startup():
-    """Seeds default data on application startup."""
-    from backend.database.database import SessionLocal
+    from backend.database.database import engine, SessionLocal
+    from backend.models import Base
     from backend.services.auth_service import AuthService
+    from sqlalchemy import text
     try:
-        auth_service = AuthService()
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            conn.commit()
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schemas and pgvector extension initialized successfully")
+    except Exception as exc:
+        logger.error(f"Database schema initialization failed: {str(exc)}")
+
+    try:
         with SessionLocal() as db:
-            auth_service.seed_data(db)
+            auth_service = AuthService(db)
+            auth_service.seed_data()
         logger.info("Database seeding completed successfully")
     except Exception as exc:
         logger.error(f"Database seeding failed: {str(exc)}")

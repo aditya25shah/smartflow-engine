@@ -17,15 +17,12 @@ INVITE_DENIED_MESSAGE = "Access Denied: You have not been invited to this worksp
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class AuthService:
-    """Authentication service class handling logins, registrations, invites, and password resets."""
+    def __init__(self, db: Session, tenant_id: Optional[str] = None):
+        self.db = db
+        self.tenant_id = tenant_id
 
-    def seed_data(self, db: Session) -> None:
-        """Seeds the database with default tenant and admin user.
-
-        Args:
-            db: The SQLAlchemy session.
-        """
-        tenant = db.query(Tenant).filter(Tenant.name == "System Workspace").first()
+    def seed_data(self) -> None:
+        tenant = self.db.query(Tenant).filter(Tenant.name == "System Workspace").first()
         if not tenant:
             tenant_id = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
@@ -35,11 +32,11 @@ class AuthService:
                 name="System Workspace",
                 created_at=now
             )
-            db.add(tenant)
-            db.commit()
-            db.refresh(tenant)
+            self.db.add(tenant)
+            self.db.commit()
+            self.db.refresh(tenant)
 
-        user = db.query(User).filter(User.email == "admin@synq.to").first()
+        user = self.db.query(User).filter(User.email == "admin@synq.to").first()
         if not user:
             now = datetime.utcnow().isoformat()
             user = User(
@@ -52,23 +49,10 @@ class AuthService:
                 is_first_login=0,
                 last_login_at=now
             )
-            db.add(user)
-            db.commit()
+            self.db.add(user)
+            self.db.commit()
 
     def create_token(self, username: str, email: str, tenant_id: str, role: str, purpose: str, minutes: int) -> str:
-        """Generates a JWT security token.
-
-        Args:
-            username: The user's login name.
-            email: The user's email address.
-            tenant_id: The tenant's identifier.
-            role: The user's role.
-            purpose: The token purpose.
-            minutes: Token expiration duration in minutes.
-
-        Returns:
-            str: Encoded JWT token.
-        """
         expire = datetime.utcnow() + timedelta(minutes=minutes)
         return jwt.encode({
             "sub": username,
@@ -80,35 +64,24 @@ class AuthService:
             "exp": expire
         }, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
-    def login_user(self, db: Session, username: str, password: str, tenant: str) -> Dict[str, Any]:
-        """Authenticates a user session.
-
-        Args:
-            db: The SQLAlchemy session.
-            username: Username or email.
-            password: Raw password.
-            tenant: Tenant workspace name.
-
-        Returns:
-            dict: Authentication outcome parameters.
-        """
+    def login_user(self, username: str, password: str, tenant: str) -> Dict[str, Any]:
         if tenant:
-            tenant_row = db.query(Tenant).filter(func.lower(Tenant.name) == func.lower(tenant)).first()
+            tenant_row = self.db.query(Tenant).filter(func.lower(Tenant.name) == func.lower(tenant)).first()
             if not tenant_row:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVITE_DENIED_MESSAGE)
             tenant_id = tenant_row.tenant_id
-            user_row = db.query(User).filter(
+            user_row = self.db.query(User).filter(
                 ((User.username == username) | (User.email == username)) & (User.tenant_id == tenant_id)
             ).first()
             if not user_row:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVITE_DENIED_MESSAGE)
             tenant_name = tenant_row.name
         else:
-            user_row = db.query(User).filter(func.lower(User.email) == func.lower(username)).first()
+            user_row = self.db.query(User).filter(func.lower(User.email) == func.lower(username)).first()
             if not user_row:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INVITE_DENIED_MESSAGE)
             tenant_id = user_row.tenant_id
-            tenant_row = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+            tenant_row = self.db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
             tenant_name = tenant_row.name if tenant_row else ""
 
         if not pwd_context.verify(password, user_row.password):
@@ -137,7 +110,7 @@ class AuthService:
             )
 
         user_row.last_login_at = datetime.utcnow().isoformat()
-        db.commit()
+        self.db.commit()
 
         access_token = self.create_token(
             user_row.username,
@@ -157,24 +130,12 @@ class AuthService:
             "is_first_login": False
         }
 
-    def register_user(self, db: Session, tenant: str, username: str, email: str, password: str) -> Dict[str, Any]:
-        """Registers a new tenant workspace and admin user.
-
-        Args:
-            db: The SQLAlchemy session.
-            tenant: Tenant workspace name.
-            username: User name.
-            email: Email address.
-            password: Raw password.
-
-        Returns:
-            dict: Registration result parameters.
-        """
-        existing_tenant = db.query(Tenant).filter(func.lower(Tenant.name) == func.lower(tenant)).first()
+    def register_user(self, tenant: str, username: str, email: str, password: str) -> Dict[str, Any]:
+        existing_tenant = self.db.query(Tenant).filter(func.lower(Tenant.name) == func.lower(tenant)).first()
         if existing_tenant:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Workspace name is already registered.")
 
-        existing_user = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+        existing_user = self.db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
         if existing_user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email address is already registered.")
 
@@ -186,7 +147,7 @@ class AuthService:
             name=tenant,
             created_at=now
         )
-        db.add(new_tenant)
+        self.db.add(new_tenant)
 
         new_user = User(
             email=email,
@@ -198,8 +159,8 @@ class AuthService:
             is_first_login=0,
             last_login_at=now
         )
-        db.add(new_user)
-        db.commit()
+        self.db.add(new_user)
+        self.db.commit()
 
         access_token = self.create_token(
             username,
@@ -219,19 +180,7 @@ class AuthService:
             "is_first_login": False
         }
 
-    async def invite_teammate(self, db: Session, email: str, name: str, role: str, claims: dict) -> Dict[str, Any]:
-        """Invites a new teammate to the workspace.
-
-        Args:
-            db: The SQLAlchemy session.
-            email: Colleague's email address.
-            name: Colleague's display name.
-            role: Requested role.
-            claims: Token claims.
-
-        Returns:
-            dict: Invitation dispatch outcome.
-        """
+    async def invite_teammate(self, email: str, name: str, role: str, claims: dict) -> Dict[str, Any]:
         if claims.get("role") not in ("Tenant_Admin", "Super_Admin"):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only workspace administrators can invite team members.")
 
@@ -241,7 +190,7 @@ class AuthService:
         if not invite_role or len(invite_role) > 64 or not invite_role.replace("_", "").replace("-", "").replace(" ", "").isalnum():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workspace role requested.")
 
-        existing_user = db.query(User).filter(func.lower(User.email) == func.lower(invite_email)).first()
+        existing_user = self.db.query(User).filter(func.lower(User.email) == func.lower(invite_email)).first()
         if existing_user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A user with this email address already exists.")
 
@@ -260,8 +209,8 @@ class AuthService:
             requires_password_reset=1,
             invited_at=datetime.utcnow().isoformat()
         )
-        db.add(new_user)
-        db.commit()
+        self.db.add(new_user)
+        self.db.commit()
 
         email_sent = False
         email_error = None
@@ -290,23 +239,13 @@ class AuthService:
             "email_error": email_error
         }
 
-    def reset_user_password(self, db: Session, new_password: str, claims: dict) -> Dict[str, Any]:
-        """Resets the account password.
-
-        Args:
-            db: The SQLAlchemy session.
-            new_password: The new password text.
-            claims: Verification token claims.
-
-        Returns:
-            dict: Session access token dictionary.
-        """
+    def reset_user_password(self, new_password: str, claims: dict) -> Dict[str, Any]:
         if not new_password or len(new_password) < 8:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters.")
 
         tenant_id = claims["tenant_id"]
         email = claims["email"]
-        user_row = db.query(User).filter(
+        user_row = self.db.query(User).filter(
             (User.email == email) &
             (User.tenant_id == tenant_id) &
             ((User.is_first_login == 1) | (User.requires_password_reset == 1))
@@ -319,9 +258,9 @@ class AuthService:
         user_row.is_first_login = 0
         user_row.requires_password_reset = 0
         user_row.last_login_at = datetime.utcnow().isoformat()
-        db.commit()
+        self.db.commit()
 
-        tenant_row = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+        tenant_row = self.db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
         access_token = self.create_token(
             claims["sub"],
             email,
@@ -340,19 +279,8 @@ class AuthService:
             "is_first_login": False
         }
 
-    def authenticate_google(self, db: Session, email: str, name: str, google_id: str) -> Dict[str, Any]:
-        """Authenticates a user via Google login.
-
-        Args:
-            db: The SQLAlchemy session.
-            email: Google account email.
-            name: Google account name.
-            google_id: Unique Google profile ID.
-
-        Returns:
-            dict: Session access token parameters.
-        """
-        user_row = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
+    def authenticate_google(self, email: str, name: str, google_id: str) -> Dict[str, Any]:
+        user_row = self.db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
         if user_row:
             tenant_id = user_row.tenant_id
             role = user_row.role
@@ -361,7 +289,7 @@ class AuthService:
             user_row.google_id = google_id
             user_row.is_first_login = 0
             user_row.last_login_at = datetime.utcnow().isoformat()
-            tenant_row = db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+            tenant_row = self.db.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
             tenant_name = tenant_row.name if tenant_row else ""
         else:
             tenant_id = str(uuid.uuid4())
@@ -373,7 +301,7 @@ class AuthService:
                 name=tenant_name,
                 created_at=now
             )
-            db.add(new_tenant)
+            self.db.add(new_tenant)
 
             new_user = User(
                 email=email,
@@ -387,11 +315,11 @@ class AuthService:
                 google_id=google_id,
                 last_login_at=now
             )
-            db.add(new_user)
+            self.db.add(new_user)
             username = name
             role = "Tenant_Admin"
 
-        db.commit()
+        self.db.commit()
         access_token = self.create_token(
             username,
             email,
@@ -410,17 +338,8 @@ class AuthService:
             "is_first_login": False
         }
 
-    def get_workspace_users(self, db: Session, tenant_id: str) -> List[Dict[str, Any]]:
-        """Lists users within a tenant workspace.
-
-        Args:
-            db: The SQLAlchemy session.
-            tenant_id: Workspace identifier.
-
-        Returns:
-            list: List of workspace users info.
-        """
-        rows = db.query(User).filter(User.tenant_id == tenant_id).all()
+    def get_workspace_users(self) -> List[Dict[str, Any]]:
+        rows = self.db.query(User).filter(User.tenant_id == self.tenant_id).all()
         return [
             {
                 "name": row.username,

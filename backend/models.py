@@ -1,6 +1,9 @@
 from sqlalchemy import String, Integer, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from typing import Optional, List
+from pgvector.sqlalchemy import Vector
+import uuid
+
 
 class Base(DeclarativeBase):
     """Declarative Base class for all ORM models."""
@@ -79,3 +82,15 @@ class Log(Base):
     task_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str] = mapped_column(String, ForeignKey("tenants.tenant_id"), nullable=False)
+    document_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
+    embedding: Mapped[List[float]] = mapped_column(Vector(1536), nullable=False)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+
