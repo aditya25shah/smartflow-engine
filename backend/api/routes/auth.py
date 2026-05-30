@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Request
 from backend.api.deps import (
     get_db,
     get_current_user_claims,
-    get_reset_claims
+    get_reset_claims,
+    check_write_permission
 )
 from backend.schemas import (
     LoginRequest,
@@ -53,7 +54,7 @@ async def register_tenant(payload: RegisterRequest, db: Session = Depends(get_db
     result = auth_service.register_user(db, payload.tenant, payload.username, payload.email, payload.password)
     return LoginResponse.from_result(result)
 
-@router.post("/invite", response_model=InviteResponse)
+@router.post("/invite", response_model=InviteResponse, dependencies=[Depends(check_write_permission)])
 async def invite_user(payload: InviteRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Invites a colleague to join the workspace.
 

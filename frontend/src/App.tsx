@@ -43,9 +43,10 @@ import { LiveDashboard } from '@/components/LiveDashboard'
 import { MappingCanvas } from '@/components/MappingCanvas'
 import { RAGPanel } from '@/components/RAGPanel'
 import { Toaster } from 'sonner'
+import { hasPermission } from '@/lib/permissions'
 
 const DashboardLayout = () => {
-  const { activeTenant, logout, token, theme, toggleTheme } = useAuthStore()
+  const { activeTenant, logout, token, theme, toggleTheme, role, email } = useAuthStore()
   const {
     pipelines,
     sources,
@@ -417,7 +418,7 @@ const DashboardLayout = () => {
           {isSidebarCollapsed ? (
             <div className="flex flex-col items-center gap-2">
               <div className="h-6 w-6 rounded-full bg-panel flex items-center justify-center text-[10px] font-bold border border-border-primary">
-                A
+                {(email || 'U')[0].toUpperCase()}
               </div>
               <button
                 onClick={handleLogout}
@@ -431,9 +432,12 @@ const DashboardLayout = () => {
             <>
               <div className="flex items-center gap-2 px-3 py-2 mb-2">
                 <div className="h-6 w-6 rounded-full bg-panel flex items-center justify-center text-[10px] font-bold border border-border-primary">
-                  A
+                  {(email || 'U')[0].toUpperCase()}
                 </div>
-                <span className="text-xs font-medium truncate text-text-secondary">Administrator</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-medium truncate text-text-secondary">{email || 'User'}</span>
+                  <span className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{role || 'Role'}</span>
+                </div>
               </div>
               <button
                 onClick={handleLogout}
@@ -493,6 +497,7 @@ const DashboardLayout = () => {
                 <SourcesPanel
                   sources={sources}
                   onCreateClick={() => setIsSourceDrawerOpen(true)}
+                  canWrite={hasPermission(role, 'pipelines:write', activeTenant)}
                 />
               }
             />
@@ -502,6 +507,7 @@ const DashboardLayout = () => {
                 <DestinationsPanel
                   destinations={destinations}
                   onCreateClick={() => setIsDestinationDrawerOpen(true)}
+                  canWrite={hasPermission(role, 'pipelines:write', activeTenant)}
                 />
               }
             />
@@ -514,6 +520,7 @@ const DashboardLayout = () => {
                   onTriggerSync={handleTriggerSync}
                   triggeringId={triggeringId}
                   onCreateClick={() => setIsDrawerOpen(true)}
+                  canWrite={hasPermission(role, 'pipelines:write', activeTenant)}
                 />
               }
             />
@@ -642,6 +649,7 @@ interface PipelinesPanelProps {
   onTriggerSync: (id: string) => void
   triggeringId: string | null
   onCreateClick: () => void
+  canWrite: boolean
 }
 
 const PipelinesPanel: React.FC<PipelinesPanelProps> = ({
@@ -649,7 +657,8 @@ const PipelinesPanel: React.FC<PipelinesPanelProps> = ({
   isLoading,
   onTriggerSync,
   triggeringId,
-  onCreateClick
+  onCreateClick,
+  canWrite
 }) => {
   return (
     <div className="space-y-8 max-w-5xl">
@@ -660,7 +669,9 @@ const PipelinesPanel: React.FC<PipelinesPanelProps> = ({
         </div>
         <button
           onClick={onCreateClick}
-          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer"
+          disabled={!canWrite}
+          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          title={!canWrite ? 'You do not have permission to create pipelines' : undefined}
         >
           <Plus className="h-4 w-4 font-bold" />
           Create Pipeline
@@ -723,9 +734,10 @@ function App() {
 interface SourcesPanelProps {
   sources: Source[]
   onCreateClick: () => void
+  canWrite: boolean
 }
 
-const SourcesPanel: React.FC<SourcesPanelProps> = ({ sources, onCreateClick }) => {
+const SourcesPanel: React.FC<SourcesPanelProps> = ({ sources, onCreateClick, canWrite }) => {
   return (
     <div className="space-y-8 max-w-5xl">
       <div className="flex items-center justify-between">
@@ -735,7 +747,9 @@ const SourcesPanel: React.FC<SourcesPanelProps> = ({ sources, onCreateClick }) =
         </div>
         <button
           onClick={onCreateClick}
-          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer"
+          disabled={!canWrite}
+          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          title={!canWrite ? 'You do not have permission to create sources' : undefined}
         >
           <Plus className="h-4 w-4 font-bold" />
           Create Source
@@ -757,7 +771,9 @@ const SourcesPanel: React.FC<SourcesPanelProps> = ({ sources, onCreateClick }) =
           </div>
           <button
             onClick={onCreateClick}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg"
+            disabled={!canWrite}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg disabled:opacity-30 disabled:cursor-not-allowed"
+            title={!canWrite ? 'You do not have permission to create sources' : undefined}
           >
             <Plus className="h-3.5 w-3.5" />
             Create Source
@@ -796,9 +812,10 @@ const SourcesPanel: React.FC<SourcesPanelProps> = ({ sources, onCreateClick }) =
 interface DestinationsPanelProps {
   destinations: Destination[]
   onCreateClick: () => void
+  canWrite: boolean
 }
 
-const DestinationsPanel: React.FC<DestinationsPanelProps> = ({ destinations, onCreateClick }) => {
+const DestinationsPanel: React.FC<DestinationsPanelProps> = ({ destinations, onCreateClick, canWrite }) => {
   return (
     <div className="space-y-8 max-w-5xl">
       <div className="flex items-center justify-between">
@@ -808,7 +825,9 @@ const DestinationsPanel: React.FC<DestinationsPanelProps> = ({ destinations, onC
         </div>
         <button
           onClick={onCreateClick}
-          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer"
+          disabled={!canWrite}
+          className="flex items-center gap-2 px-3.5 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          title={!canWrite ? 'You do not have permission to create destinations' : undefined}
         >
           <Plus className="h-4 w-4 font-bold" />
           Create Destination
@@ -830,7 +849,9 @@ const DestinationsPanel: React.FC<DestinationsPanelProps> = ({ destinations, onC
           </div>
           <button
             onClick={onCreateClick}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg"
+            disabled={!canWrite}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg disabled:opacity-30 disabled:cursor-not-allowed"
+            title={!canWrite ? 'You do not have permission to create destinations' : undefined}
           >
             <Plus className="h-3.5 w-3.5" />
             Create Destination

@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Body, Depends, status
-from backend.api.deps import get_db, get_current_user_claims, check_tenant_id
+from backend.api.deps import get_db, get_current_user_claims, check_tenant_id, check_write_permission
 from backend.schemas import (
     SourceRequest,
     SourceResponse,
@@ -53,7 +53,7 @@ async def get_source(id: str, claims: dict = Depends(get_current_user_claims), d
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.read_tenant_row(db, "sources", tenant_id, id)
 
-@router.post("/sources", response_model=SourceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/sources", response_model=SourceResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(check_write_permission)])
 async def save_source(payload: SourceRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Saves or registers a data source in the workspace.
 
@@ -68,7 +68,7 @@ async def save_source(payload: SourceRequest, claims: dict = Depends(get_current
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.upsert_tenant_row(db, "sources", tenant_id, payload.model_dump())
 
-@router.put("/sources/{id}", response_model=SourceResponse)
+@router.put("/sources/{id}", response_model=SourceResponse, dependencies=[Depends(check_write_permission)])
 async def update_source(id: str, payload: SourceRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Updates parameters of an existing data source.
 
@@ -84,7 +84,7 @@ async def update_source(id: str, payload: SourceRequest, claims: dict = Depends(
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.update_tenant_row(db, "sources", tenant_id, id, payload.model_dump())
 
-@router.delete("/sources/{id}", response_model=DeleteResponse)
+@router.delete("/sources/{id}", response_model=DeleteResponse, dependencies=[Depends(check_write_permission)])
 async def delete_source(id: str, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Deletes a configured data source.
 
@@ -128,7 +128,7 @@ async def get_destination(id: str, claims: dict = Depends(get_current_user_claim
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.read_tenant_row(db, "destinations", tenant_id, id)
 
-@router.post("/destinations", response_model=DestinationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/destinations", response_model=DestinationResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(check_write_permission)])
 async def save_destination(payload: DestinationRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Registers a sync destination database.
 
@@ -143,7 +143,7 @@ async def save_destination(payload: DestinationRequest, claims: dict = Depends(g
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.upsert_tenant_row(db, "destinations", tenant_id, payload.model_dump())
 
-@router.put("/destinations/{id}", response_model=DestinationResponse)
+@router.put("/destinations/{id}", response_model=DestinationResponse, dependencies=[Depends(check_write_permission)])
 async def update_destination(id: str, payload: DestinationRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Updates config parameters of a destination.
 
@@ -159,7 +159,7 @@ async def update_destination(id: str, payload: DestinationRequest, claims: dict 
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.update_tenant_row(db, "destinations", tenant_id, id, payload.model_dump())
 
-@router.delete("/destinations/{id}", response_model=DeleteResponse)
+@router.delete("/destinations/{id}", response_model=DeleteResponse, dependencies=[Depends(check_write_permission)])
 async def delete_destination(id: str, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Deletes destination configurations.
 
@@ -203,7 +203,7 @@ async def get_connection(id: str, claims: dict = Depends(get_current_user_claims
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.read_tenant_row(db, "connections", tenant_id, id)
 
-@router.post("/connections", response_model=ConnectionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/connections", response_model=ConnectionResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(check_write_permission)])
 async def save_connection(payload: ConnectionRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Creates a sync connection.
 
@@ -218,7 +218,7 @@ async def save_connection(payload: ConnectionRequest, claims: dict = Depends(get
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.upsert_tenant_row(db, "connections", tenant_id, payload.model_dump())
 
-@router.put("/connections/{id}", response_model=ConnectionResponse)
+@router.put("/connections/{id}", response_model=ConnectionResponse, dependencies=[Depends(check_write_permission)])
 async def update_connection(id: str, payload: ConnectionRequest, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Modifies connection properties.
 
@@ -234,7 +234,7 @@ async def update_connection(id: str, payload: ConnectionRequest, claims: dict = 
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.update_tenant_row(db, "connections", tenant_id, id, payload.model_dump())
 
-@router.delete("/connections/{id}", response_model=DeleteResponse)
+@router.delete("/connections/{id}", response_model=DeleteResponse, dependencies=[Depends(check_write_permission)])
 async def delete_connection(id: str, claims: dict = Depends(get_current_user_claims), db: Session = Depends(get_db)):
     """Removes a sync connection.
 
@@ -328,7 +328,7 @@ async def get_task_status(task_id: str, claims: dict = Depends(get_current_user_
     tenant_id = check_tenant_id(claims.get("tenant_id"))
     return pipeline_service.get_task_status(db, tenant_id, task_id)
 
-@router.post("/{id}/auth-driver", response_model=AuthDriverResponse)
+@router.post("/{id}/auth-driver", response_model=AuthDriverResponse, dependencies=[Depends(check_write_permission)])
 async def save_auth_driver(
     id: str,
     payload: AuthDriverRequest,

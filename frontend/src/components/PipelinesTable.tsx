@@ -8,6 +8,8 @@ import {
   ArrowUpRight
 } from 'lucide-react'
 import type { Pipeline } from '@/types'
+import { useAuthStore } from '@/store/authStore'
+import { hasPermission } from '@/lib/permissions'
 
 interface PipelinesTableProps {
   pipelines: Pipeline[]
@@ -24,8 +26,10 @@ export const PipelinesTable: React.FC<PipelinesTableProps> = ({
   triggeringId,
   onCreateClick
 }) => {
+  const { role, activeTenant } = useAuthStore()
+  const canWrite = hasPermission(role, 'pipelines:write', activeTenant)
+  const canExecute = hasPermission(role, 'pipelines:execute', activeTenant)
   
-  // Render loading skeleton rows
   if (isLoading) {
     return (
       <div className="bg-panel border border-border-primary rounded-lg overflow-hidden">
@@ -78,7 +82,6 @@ export const PipelinesTable: React.FC<PipelinesTableProps> = ({
     )
   }
 
-  // Render empty state if list is empty
   if (pipelines.length === 0) {
     return (
       <div className="bg-panel border border-border-primary rounded-xl p-16 text-center max-w-5xl mx-auto space-y-5">
@@ -97,7 +100,9 @@ export const PipelinesTable: React.FC<PipelinesTableProps> = ({
 
         <button
           onClick={onCreateClick}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg active:scale-[0.98]"
+          disabled={!canWrite}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-text-primary text-background font-medium hover:opacity-90 text-xs rounded transition-all duration-150 cursor-pointer shadow-lg active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
+          title={!canWrite ? 'You do not have permission to provision pipelines' : undefined}
         >
           <Plus className="h-3.5 w-3.5" />
           Provision Pipeline
@@ -106,7 +111,6 @@ export const PipelinesTable: React.FC<PipelinesTableProps> = ({
     )
   }
 
-  // Render table list
   return (
     <div className="bg-panel border border-border-primary rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -164,8 +168,9 @@ export const PipelinesTable: React.FC<PipelinesTableProps> = ({
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => onTriggerSync(pipe.id)}
-                      disabled={isSyncing}
-                      className="px-2.5 py-1.5 text-xs border border-border-primary hover:border-border-secondary rounded bg-panel hover:bg-text-primary/5 text-text-secondary hover:text-text-primary transition-all font-medium disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+                      disabled={isSyncing || !canExecute}
+                      className="px-2.5 py-1.5 text-xs border border-border-primary hover:border-border-secondary rounded bg-panel hover:bg-text-primary/5 text-text-secondary hover:text-text-primary transition-all font-medium disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center gap-1.5 cursor-pointer"
+                      title={!canExecute ? 'You do not have permission to execute syncs' : undefined}
                     >
                       {isSyncing ? (
                         <>

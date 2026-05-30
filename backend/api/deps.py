@@ -86,3 +86,20 @@ def check_tenant_id(tenant_id: str) -> str:
             detail="Unauthorized: tenant_id is missing."
         )
     return tenant_id
+
+def check_write_permission(claims: dict = Depends(get_current_user_claims)) -> None:
+    """Verifies that the authenticated user has write permissions.
+
+    Args:
+        claims: Decoded JWT claims.
+
+    Raises:
+        HTTPException: If the user lacks write permissions.
+    """
+    role = claims.get("role")
+    if role == "Tenant_User":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: You do not have write permissions to perform this action."
+        )
+
